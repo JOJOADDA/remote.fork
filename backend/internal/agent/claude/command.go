@@ -111,8 +111,9 @@ func (p *Provider) buildCmd(
 	if _, err := p.projects.Start(ctx, project.ID); err != nil {
 		return nil, "", fmt.Errorf("start container: %w", err)
 	}
-
+	projectEnv := p.projectEnvironment(ctx, project.ID, req.RuntimeEnv)
 	if err := p.containerDeps.Validate(); err != nil {
+
 		return nil, "", err
 	}
 	if !p.containerDeps.IsZero() {
@@ -120,9 +121,12 @@ func (p *Provider) buildCmd(
 		if err := p.containerDeps.CLI.Ensure(ctx, project.ContainerName, p.profile.CLI); err != nil {
 			return nil, "", fmt.Errorf("install claude in container: %w", err)
 		}
-		if err := p.containerDeps.Credentials.Ensure(ctx, project.ContainerName, p.profile.Credentials); err != nil {
-			return nil, "", fmt.Errorf("seed claude auth in container: %w", err)
+		if !hasClaudeAPICredentials(projectEnv) {
+			if err := p.containerDeps.Credentials.Ensure(ctx, project.ContainerName, p.profile.Credentials); err != nil {
+				return nil, "", fmt.Errorf("seed claude auth in container: %w", err)
+			}
 		}
+
 		if err := p.containerDeps.Workspace.EnsureAgentInstructions(ctx, project.ContainerName); err != nil {
 			return nil, "", fmt.Errorf("push agent instructions to container: %w", err)
 		}
@@ -164,17 +168,6 @@ func (p *Provider) buildCmd(
 		"--env", "IS_SANDBOX=1",
 		"--env", "HOME=/root",
 	}
-	projectEnv := make(map[string]string)
-	if p.projects != nil {
-		if secrets, err := p.projects.ListSecrets(ctx, project.ID); err == nil {
-			for _, sec := range secrets {
-				if _, backendIssued := req.RuntimeEnv[sec.Key]; backendIssued {
-					continue
-				}
-				projectEnv[sec.Key] = sec.Value
-			}
-		}
-	}
 	for _, entry := range agent.RuntimeEnvironment(agent.WithOpenRouterClaudeEnvironment(projectEnv)) {
 		lxcArgs = append(lxcArgs, "--env", entry)
 	}
@@ -186,6 +179,30 @@ func (p *Provider) buildCmd(
 	cmd := exec.CommandContext(ctx, "lxc", lxcArgs...)
 	cmd.Stdin = strings.NewReader(req.Prompt)
 	return cmd, project.ContainerName, nil
+}
+
+func (p *Provider) projectEnvironment(ctx context.Context, id serviceproject.ID, runtimeEnv map[string]string) map[string]string {
+	values := make(map[string]string)
+	if p.projects == nil {
+		return values
+	}
+	secrets, err := p.projects.ListSecrets(ctx, id)
+	if err != nil {
+		return values
+	}
+	for _, secret := range secrets {
+		if _, backendIssued := runtimeEnv[secret.Key]; !backendIssued {
+			values[secret.Key] = secret.Value
+		}
+	}
+	return values
+}
+
+func hasClaudeAPICredentials(values map[string]string) bool {
+	return strings.TrimSpace(values["OPENROUTER_API_KEY"]) != "" ||
+		strings.TrimSpace(values["ANTHROPIC_API_KEY"]) != "" ||
+		strings.TrimSpace(values["ANTHROPIC_AUTH_TOKEN"]) != "" ||
+		strings.TrimSpace(values["CLAUDE_CODE_USE_FOUNDRY"]) != ""
 }
 
 func emitSystem(req agent.RunRequest, emit func(agent.Event), subtype string) {

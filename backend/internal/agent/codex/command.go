@@ -144,6 +144,7 @@ func (p *Provider) buildCmd(
 		return nil, "", fmt.Errorf("start container: %w", err)
 	}
 
+	projectEnv := p.projectEnvironment(ctx, project.ID, req.RuntimeEnv)
 	if err := p.containerDeps.Validate(); err != nil {
 		return nil, "", err
 	}
@@ -152,9 +153,12 @@ func (p *Provider) buildCmd(
 		if err := p.containerDeps.CLI.Ensure(ctx, project.ContainerName, p.profile.CLI); err != nil {
 			return nil, "", fmt.Errorf("codex CLI unavailable in container: %w", err)
 		}
-		if err := p.ensureCredentials(ctx, project.ContainerName); err != nil {
-			return nil, "", fmt.Errorf("seed codex auth in container: %w", err)
+		if !hasCodexAPICredentials(projectEnv) {
+			if err := p.ensureCredentials(ctx, project.ContainerName); err != nil {
+				return nil, "", fmt.Errorf("seed codex auth in container: %w", err)
+			}
 		}
+
 		if err := p.containerDeps.Workspace.EnsureAgentInstructions(ctx, project.ContainerName); err != nil {
 			return nil, "", fmt.Errorf("push agent instructions to container: %w", err)
 		}
@@ -194,17 +198,8 @@ func (p *Provider) buildCmd(
 		"--env", "HOME=/root",
 		"--env", "CODEX_HOME=/root/.codex",
 	}
-	projectEnv := make(map[string]string)
-	if p.projects != nil {
-		if secrets, err := p.projects.ListSecrets(ctx, project.ID); err == nil {
-			for _, sec := range secrets {
-				if _, backendIssued := req.RuntimeEnv[sec.Key]; backendIssued {
-					continue
-				}
-				projectEnv[sec.Key] = sec.Value
-				lxcArgs = append(lxcArgs, "--env", sec.Key+"="+sec.Value)
-			}
-		}
+	for key, value := range projectEnv {
+		lxcArgs = append(lxcArgs, "--env", key+"="+value)
 	}
 
 	for _, entry := range agent.RuntimeEnvironment(req.RuntimeEnv) {
@@ -218,6 +213,28 @@ func (p *Provider) buildCmd(
 	cmd := exec.CommandContext(ctx, "lxc", lxcArgs...)
 	cmd.Stdin = strings.NewReader(req.Prompt)
 	return cmd, project.ContainerName, nil
+}
+
+func (p *Provider) projectEnvironment(ctx context.Context, id serviceproject.ID, runtimeEnv map[string]string) map[string]string {
+	values := make(map[string]string)
+	if p.projects == nil {
+		return values
+	}
+	secrets, err := p.projects.ListSecrets(ctx, id)
+	if err != nil {
+		return values
+	}
+	for _, secret := range secrets {
+		if _, backendIssued := runtimeEnv[secret.Key]; !backendIssued {
+			values[secret.Key] = secret.Value
+		}
+	}
+	return values
+}
+
+func hasCodexAPICredentials(values map[string]string) bool {
+	return strings.TrimSpace(values["OPENAI_API_KEY"]) != "" ||
+		(strings.TrimSpace(values["AZURE_OPENAI_API_KEY"]) != "" && strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]) != "")
 }
 
 func withCodexConfigArgs(args []string, values map[string]string) []string {

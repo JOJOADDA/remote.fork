@@ -14,6 +14,18 @@ import (
 	serviceproject "github.com/futrx-com/remote.futrx.com/internal/service/project"
 )
 
+func TestHasCodexAPICredentials(t *testing.T) {
+	if !hasCodexAPICredentials(map[string]string{"OPENAI_API_KEY": "key"}) {
+		t.Fatal("OpenAI API key should enable API mode")
+	}
+	if !hasCodexAPICredentials(map[string]string{"AZURE_OPENAI_API_KEY": "key", "AZURE_OPENAI_ENDPOINT": "https://resource.openai.azure.com"}) {
+		t.Fatal("complete Azure credentials should enable API mode")
+	}
+	if hasCodexAPICredentials(map[string]string{"AZURE_OPENAI_API_KEY": "key"}) {
+		t.Fatal("incomplete Azure credentials must not bypass authentication")
+	}
+}
+
 func TestArgsUseCodexExecJSONMode(t *testing.T) {
 	provider := New(nil, provisioning.ContainerDependencies{})
 	args := provider.args(agent.RunRequest{Model: "gpt-5.5 [fast]"})
