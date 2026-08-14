@@ -11,6 +11,7 @@ import {
   ProjectInfoSection,
 } from "./project-containers/ProjectInfoSection";
 import { ProjectSecretsSection } from "./project-containers/ProjectSecretsSection";
+import { AgentApiSettings } from "./project-containers/AgentApiSettings";
 import { ProjectSharingSection } from "./project-containers/ProjectSharingSection";
 import { ProjectResourceLimits } from "./project-containers/ProjectResourceLimits";
 import { formatRelativeTime as fmtRelative } from "./project-containers/projectContainerFormat";
@@ -218,6 +219,10 @@ export function ProjectContainersPage({
                     description={secretsDescription(secretsRecord)}
                     Icon={Key}
                   >
+                    <AgentApiSettings
+                      secrets={secretsRecord.data ?? []}
+                      onSave={onSaveSecret}
+                    />
                     <ProjectSecretsSection
                       record={secretsRecord}
                       onSave={onSaveSecret}

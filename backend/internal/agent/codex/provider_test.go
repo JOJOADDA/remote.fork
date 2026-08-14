@@ -253,6 +253,28 @@ func TestBuildCmdProvisionsBrowserMCPOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestCodexAzureArgsUseResponsesV1Provider(t *testing.T) {
+	args := codexAzureArgs(map[string]string{
+		"AZURE_OPENAI_API_KEY":    "azure-test-key",
+		"AZURE_OPENAI_ENDPOINT":   "https://resource.openai.azure.com",
+		"AZURE_OPENAI_DEPLOYMENT": "gpt-5-codex",
+	})
+	for _, expected := range []string{
+		"model_provider=azure",
+		"model_providers.azure.base_url=https://resource.openai.azure.com/openai/v1",
+		"model_providers.azure.env_key=AZURE_OPENAI_API_KEY",
+		"model_providers.azure.wire_api=responses",
+		"model=gpt-5-codex",
+	} {
+		if !slices.Contains(args, expected) {
+			t.Fatalf("Azure args missing %q: %#v", expected, args)
+		}
+	}
+	if slices.Contains(args, "azure-test-key") {
+		t.Fatal("Azure API key leaked into Codex command arguments")
+	}
+}
+
 func TestBuildCmdPassesRuntimeEnvironmentOnHostAndIntoContainer(t *testing.T) {
 	runtimeEnv := map[string]string{
 		"REMOTE_SCHEDULE_API":   "https://remote.test/agent-api/schedules",

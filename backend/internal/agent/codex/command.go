@@ -116,7 +116,9 @@ func (p *Provider) buildCmd(
 		if err := ensureHostSubscriptionAuth(); err != nil {
 			return nil, "", err
 		}
+		args = withCodexConfigArgs(args, req.RuntimeEnv)
 		cmd := exec.CommandContext(ctx, "codex", args...)
+
 		cmd.Dir = cwd
 		cmd.Env = agent.WithRuntimeEnvironment(codexEnv(os.Environ()), req.RuntimeEnv)
 		cmd.Stdin = strings.NewReader(req.Prompt)
@@ -192,25 +194,69 @@ func (p *Provider) buildCmd(
 		"--env", "HOME=/root",
 		"--env", "CODEX_HOME=/root/.codex",
 	}
+	projectEnv := make(map[string]string)
 	if p.projects != nil {
 		if secrets, err := p.projects.ListSecrets(ctx, project.ID); err == nil {
 			for _, sec := range secrets {
 				if _, backendIssued := req.RuntimeEnv[sec.Key]; backendIssued {
 					continue
 				}
+				projectEnv[sec.Key] = sec.Value
 				lxcArgs = append(lxcArgs, "--env", sec.Key+"="+sec.Value)
 			}
 		}
 	}
 
 	for _, entry := range agent.RuntimeEnvironment(req.RuntimeEnv) {
+
 		lxcArgs = append(lxcArgs, "--env", entry)
 	}
+	args = withCodexConfigArgs(args, projectEnv)
 	lxcArgs = append(lxcArgs, project.ContainerName, "--", "codex")
 	lxcArgs = append(lxcArgs, args...)
+
 	cmd := exec.CommandContext(ctx, "lxc", lxcArgs...)
 	cmd.Stdin = strings.NewReader(req.Prompt)
 	return cmd, project.ContainerName, nil
+}
+
+func withCodexConfigArgs(args []string, values map[string]string) []string {
+	extra := codexAzureArgs(values)
+	if len(extra) == 0 {
+		return args
+	}
+	insertAt := len(args)
+	if insertAt > 0 && args[insertAt-1] == "-" {
+		insertAt--
+	}
+	out := make([]string, 0, len(args)+len(extra))
+	out = append(out, args[:insertAt]...)
+	out = append(out, extra...)
+	out = append(out, args[insertAt:]...)
+	return out
+}
+
+func codexAzureArgs(values map[string]string) []string {
+	if strings.TrimSpace(values["AZURE_OPENAI_API_KEY"]) == "" || strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]) == "" {
+		return nil
+	}
+	baseURL := strings.TrimRight(strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]), "/")
+	if configured := strings.TrimSpace(values["OPENAI_BASE_URL"]); configured != "" {
+		baseURL = strings.TrimRight(configured, "/")
+	} else if !strings.HasSuffix(baseURL, "/openai/v1") {
+		baseURL += "/openai/v1"
+	}
+	args := []string{
+		"-c", "model_provider=azure",
+		"-c", "model_providers.azure.name=Azure OpenAI",
+		"-c", "model_providers.azure.base_url=" + baseURL,
+		"-c", "model_providers.azure.env_key=AZURE_OPENAI_API_KEY",
+		"-c", "model_providers.azure.wire_api=responses",
+	}
+	if deployment := strings.TrimSpace(values["AZURE_OPENAI_DEPLOYMENT"]); deployment != "" {
+		args = append(args, "-c", "model="+deployment)
+	}
+	return args
 }
 
 func ensureHostSubscriptionAuth() error {

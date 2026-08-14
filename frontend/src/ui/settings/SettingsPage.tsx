@@ -208,6 +208,7 @@ export function SettingsPage({
                     </div>
                   </div>
                   <div class="p-3 space-y-3">
+                    <ApiProviderNotice />
                     <ClaudeAuthSettings />
                     <CodexAuthSettings
                       authenticated={codexAuthenticated}
@@ -330,6 +331,25 @@ function SettingsNavigation({
         })}
       </nav>
     </aside>
+  );
+}
+
+function ApiProviderNotice() {
+  return (
+    <section class="rounded-md border border-accent-blue/20 bg-accent-blue/[0.04] p-3 space-y-2">
+      <div class="text-[14px] font-semibold text-ink-100">API keys are supported — OAuth is optional</div>
+      <p class="text-[12px] text-ink-300 leading-relaxed">
+        You do not need a Claude Pro, ChatGPT Plus, or other subscription to run agents with pay-as-you-go providers. Configure API credentials per project in <span class="font-semibold text-ink-100">Project → Containers → Secrets</span>.
+      </p>
+      <div class="grid gap-1 text-[11.5px] font-mono text-ink-200">
+        <div><span class="text-accent-blue">Claude / OpenRouter:</span> OPENROUTER_API_KEY</div>
+        <div><span class="text-accent-blue">OpenAI-compatible:</span> OPENAI_API_KEY + OPENAI_BASE_URL</div>
+        <div><span class="text-accent-blue">Azure:</span> AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT</div>
+      </div>
+      <p class="text-[11.5px] text-ink-400 leading-relaxed">
+        The OAuth controls below remain available only as an alternative for users who want subscription authentication.
+      </p>
+    </section>
   );
 }
 
