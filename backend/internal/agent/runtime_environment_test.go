@@ -44,6 +44,21 @@ func TestWithOpenRouterClaudeEnvironment(t *testing.T) {
 	}
 }
 
+func TestWithOpenRouterOpenAIEnvironment(t *testing.T) {
+	got := WithOpenRouterOpenAIEnvironment(map[string]string{"OPENROUTER_API_KEY": "sk-or-test"})
+	if got["OPENAI_API_KEY"] != "sk-or-test" || got["OPENAI_BASE_URL"] != "https://openrouter.ai/api/v1" {
+		t.Fatalf("OpenRouter Codex mapping = %#v", got)
+	}
+	overridden := WithOpenRouterOpenAIEnvironment(map[string]string{
+		"OPENROUTER_API_KEY": "sk-or-test",
+		"OPENAI_API_KEY":     "explicit-key",
+		"OPENAI_BASE_URL":    "https://gateway.test/v1",
+	})
+	if overridden["OPENAI_API_KEY"] != "explicit-key" || overridden["OPENAI_BASE_URL"] != "https://gateway.test/v1" {
+		t.Fatalf("explicit OpenAI environment was overwritten: %#v", overridden)
+	}
+}
+
 func TestWithRuntimeEnvironmentReplacesExistingValues(t *testing.T) {
 	got := WithRuntimeEnvironment(
 		[]string{"PATH=/bin", "REMOTE_SCHEDULE_GRANT=stale", "KEEP=yes"},

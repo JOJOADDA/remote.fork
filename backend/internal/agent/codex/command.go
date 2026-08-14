@@ -116,7 +116,7 @@ func (p *Provider) buildCmd(
 		if err := ensureHostSubscriptionAuth(); err != nil {
 			return nil, "", err
 		}
-		args = withCodexConfigArgs(args, req.RuntimeEnv)
+		args = withCodexConfigArgs(args, req.RuntimeEnv, req.Model)
 		cmd := exec.CommandContext(ctx, "codex", args...)
 
 		cmd.Dir = cwd
@@ -144,7 +144,7 @@ func (p *Provider) buildCmd(
 		return nil, "", fmt.Errorf("start container: %w", err)
 	}
 
-	projectEnv := p.projectEnvironment(ctx, project.ID, req.RuntimeEnv)
+	projectEnv := agent.WithOpenRouterOpenAIEnvironment(p.projectEnvironment(ctx, project.ID, req.RuntimeEnv))
 	if err := p.containerDeps.Validate(); err != nil {
 		return nil, "", err
 	}
@@ -206,7 +206,7 @@ func (p *Provider) buildCmd(
 
 		lxcArgs = append(lxcArgs, "--env", entry)
 	}
-	args = withCodexConfigArgs(args, projectEnv)
+	args = withCodexConfigArgs(args, projectEnv, req.Model)
 	lxcArgs = append(lxcArgs, project.ContainerName, "--", "codex")
 	lxcArgs = append(lxcArgs, args...)
 
@@ -233,12 +233,13 @@ func (p *Provider) projectEnvironment(ctx context.Context, id serviceproject.ID,
 }
 
 func hasCodexAPICredentials(values map[string]string) bool {
-	return strings.TrimSpace(values["OPENAI_API_KEY"]) != "" ||
+	return strings.TrimSpace(values["OPENROUTER_API_KEY"]) != "" ||
+		strings.TrimSpace(values["OPENAI_API_KEY"]) != "" ||
 		(strings.TrimSpace(values["AZURE_OPENAI_API_KEY"]) != "" && strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]) != "")
 }
 
-func withCodexConfigArgs(args []string, values map[string]string) []string {
-	extra := codexAzureArgs(values)
+func withCodexConfigArgs(args []string, values map[string]string, requestedModel string) []string {
+	extra := codexAzureArgs(values, requestedModel)
 	if len(extra) == 0 {
 		return args
 	}
@@ -253,7 +254,7 @@ func withCodexConfigArgs(args []string, values map[string]string) []string {
 	return out
 }
 
-func codexAzureArgs(values map[string]string) []string {
+func codexAzureArgs(values map[string]string, requestedModel string) []string {
 	if strings.TrimSpace(values["AZURE_OPENAI_API_KEY"]) == "" || strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]) == "" {
 		return nil
 	}
@@ -270,8 +271,12 @@ func codexAzureArgs(values map[string]string) []string {
 		"-c", "model_providers.azure.env_key=AZURE_OPENAI_API_KEY",
 		"-c", "model_providers.azure.wire_api=responses",
 	}
-	if deployment := strings.TrimSpace(values["AZURE_OPENAI_DEPLOYMENT"]); deployment != "" {
-		args = append(args, "-c", "model="+deployment)
+	model := strings.TrimSpace(requestedModel)
+	if model == "" {
+		model = strings.TrimSpace(values["AZURE_OPENAI_DEPLOYMENT"])
+	}
+	if model != "" {
+		args = append(args, "-c", "model="+model)
 	}
 	return args
 }

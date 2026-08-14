@@ -66,6 +66,24 @@ func WithOpenRouterClaudeEnvironment(values map[string]string) map[string]string
 	return out
 }
 
+// WithOpenRouterOpenAIEnvironment maps a project OpenRouter key to the
+// OpenAI-compatible variables consumed by Codex. Explicit OpenAI values win.
+func WithOpenRouterOpenAIEnvironment(values map[string]string) map[string]string {
+	out := make(map[string]string, len(values)+2)
+	for key, value := range values {
+		out[key] = value
+	}
+	if key := strings.TrimSpace(out["OPENROUTER_API_KEY"]); key != "" {
+		if strings.TrimSpace(out["OPENAI_API_KEY"]) == "" {
+			out["OPENAI_API_KEY"] = key
+		}
+		if strings.TrimSpace(out["OPENAI_BASE_URL"]) == "" {
+			out["OPENAI_BASE_URL"] = "https://openrouter.ai/api/v1"
+		}
+	}
+	return out
+}
+
 func validEnvironmentName(value string) bool {
 	if value == "" || strings.ContainsRune(value, '=') {
 		return false

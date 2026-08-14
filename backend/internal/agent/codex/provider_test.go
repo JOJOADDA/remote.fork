@@ -270,7 +270,7 @@ func TestCodexAzureArgsUseResponsesV1Provider(t *testing.T) {
 		"AZURE_OPENAI_API_KEY":    "azure-test-key",
 		"AZURE_OPENAI_ENDPOINT":   "https://resource.openai.azure.com",
 		"AZURE_OPENAI_DEPLOYMENT": "gpt-5-codex",
-	})
+	}, "")
 	for _, expected := range []string{
 		"model_provider=azure",
 		"model_providers.azure.base_url=https://resource.openai.azure.com/openai/v1",

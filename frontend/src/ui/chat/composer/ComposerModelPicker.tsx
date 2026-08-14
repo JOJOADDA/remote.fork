@@ -17,12 +17,14 @@ export function ComposerModelPicker({
   onChange: (model: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [customModel, setCustomModel] = useState(model);
   const rootRef = useRef<HTMLDivElement>(null);
   const label = modelDisplayLabel(model, provider);
 
   useEffect(() => {
     setOpen(false);
-  }, [provider]);
+    setCustomModel(model);
+  }, [provider, model]);
 
   useEffect(() => {
     if (!open) return;
@@ -64,6 +66,22 @@ export function ComposerModelPicker({
                  rounded-lg border border-white/10 bg-[#14161d] p-1 shadow-2xl"
           role="listbox"
         >
+          <div class="border-b border-white/10 p-2">
+            <label class="block text-[11px] text-ink-400 mb-1">Custom model or Azure deployment</label>
+            <div class="flex gap-1.5">
+              <input
+                type="text"
+                value={customModel}
+                onInput={(event) => setCustomModel((event.target as HTMLInputElement).value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && customModel.trim()) pick(customModel.trim());
+                }}
+                placeholder="deployment-or-model-id"
+                class="min-w-0 flex-1 rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[12px] text-ink-100 placeholder-ink-500 focus:outline-none focus:border-accent-blue/50"
+              />
+              <button type="button" onClick={() => customModel.trim() && pick(customModel.trim())} disabled={!customModel.trim()} class="rounded-md bg-accent-blue/80 px-2 text-[11px] font-semibold text-white disabled:opacity-40">Use</button>
+            </div>
+          </div>
           {model && !options.some((option) => option.value === model) && (
             <button
               type="button"
