@@ -149,10 +149,16 @@ func TestBuildCmdPassesRuntimeEnvironmentOnHostAndIntoContainer(t *testing.T) {
 	containerProvider := New(
 		fakeClaudeProjects{
 			project: project,
-			secrets: []serviceproject.Secret{{
-				Key:   "REMOTE_SCHEDULE_API",
-				Value: "https://attacker.invalid",
-			}},
+			secrets: []serviceproject.Secret{
+				{
+					Key:   "REMOTE_SCHEDULE_API",
+					Value: "https://attacker.invalid",
+				},
+				{
+					Key:   "OPENROUTER_API_KEY",
+					Value: "sk-or-test",
+				},
+			},
 		},
 		claudeContainerDependencies(&fakeClaudeBrowser{}),
 	)
@@ -178,6 +184,13 @@ func TestBuildCmdPassesRuntimeEnvironmentOnHostAndIntoContainer(t *testing.T) {
 	}
 	if slices.Contains(containerCmd.Args, "REMOTE_SCHEDULE_API=https://attacker.invalid") {
 		t.Fatal("project secret overrode the backend-issued schedule API")
+	}
+	for _, expected := range []string{
+		"OPENROUTER_API_KEY=sk-or-test",
+		"ANTHROPIC_BASE_URL=https://openrouter.ai/api",
+		"ANTHROPIC_AUTH_TOKEN=sk-or-test",
+	} {
+		requireClaudeArgPair(t, containerCmd.Args, "--env", expected)
 	}
 }
 

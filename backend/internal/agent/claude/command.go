@@ -88,7 +88,7 @@ func (p *Provider) buildCmd(
 		// IS_SANDBOX=1 lets `claude --dangerously-skip-permissions` run under
 		// uid 0. The box is single-user and the UI is auto-approve.
 		cmd.Env = append(os.Environ(), "IS_SANDBOX=1")
-		cmd.Env = agent.WithRuntimeEnvironment(cmd.Env, req.RuntimeEnv)
+		cmd.Env = agent.WithRuntimeEnvironment(cmd.Env, agent.WithOpenRouterClaudeEnvironment(req.RuntimeEnv))
 		cmd.Stdin = strings.NewReader(req.Prompt)
 		return cmd, "", nil
 	}
@@ -164,15 +164,19 @@ func (p *Provider) buildCmd(
 		"--env", "IS_SANDBOX=1",
 		"--env", "HOME=/root",
 	}
+	projectEnv := make(map[string]string)
 	if p.projects != nil {
 		if secrets, err := p.projects.ListSecrets(ctx, project.ID); err == nil {
 			for _, sec := range secrets {
 				if _, backendIssued := req.RuntimeEnv[sec.Key]; backendIssued {
 					continue
 				}
-				lxcArgs = append(lxcArgs, "--env", sec.Key+"="+sec.Value)
+				projectEnv[sec.Key] = sec.Value
 			}
 		}
+	}
+	for _, entry := range agent.RuntimeEnvironment(agent.WithOpenRouterClaudeEnvironment(projectEnv)) {
+		lxcArgs = append(lxcArgs, "--env", entry)
 	}
 	for _, entry := range agent.RuntimeEnvironment(req.RuntimeEnv) {
 		lxcArgs = append(lxcArgs, "--env", entry)

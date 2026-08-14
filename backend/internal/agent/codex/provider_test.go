@@ -288,10 +288,20 @@ func TestBuildCmdPassesRuntimeEnvironmentOnHostAndIntoContainer(t *testing.T) {
 	containerProvider := New(
 		fakeCodexProjects{
 			project: project,
-			secrets: []serviceproject.Secret{{
-				Key:   "REMOTE_SCHEDULE_API",
-				Value: "https://attacker.invalid",
-			}},
+			secrets: []serviceproject.Secret{
+				{
+					Key:   "REMOTE_SCHEDULE_API",
+					Value: "https://attacker.invalid",
+				},
+				{
+					Key:   "OPENAI_API_KEY",
+					Value: "sk-openai-test",
+				},
+				{
+					Key:   "OPENAI_BASE_URL",
+					Value: "https://api.example.test/v1",
+				},
+			},
 		},
 		codexContainerDependencies(nil, &fakeCodexBrowser{}),
 	)
@@ -317,6 +327,12 @@ func TestBuildCmdPassesRuntimeEnvironmentOnHostAndIntoContainer(t *testing.T) {
 	}
 	if slices.Contains(containerCmd.Args, "REMOTE_SCHEDULE_API=https://attacker.invalid") {
 		t.Fatal("project secret overrode the backend-issued schedule API")
+	}
+	for _, expected := range []string{
+		"OPENAI_API_KEY=sk-openai-test",
+		"OPENAI_BASE_URL=https://api.example.test/v1",
+	} {
+		requireCodexArgPair(t, containerCmd.Args, "--env", expected)
 	}
 }
 

@@ -47,6 +47,25 @@ func WithRuntimeEnvironment(base []string, values map[string]string) []string {
 	return append(out, entries...)
 }
 
+// WithOpenRouterClaudeEnvironment adds the environment expected by Claude Code
+// when a project supplies an OpenRouter API key. Explicit Anthropic endpoint and
+// auth-token values remain authoritative so users can configure another gateway.
+func WithOpenRouterClaudeEnvironment(values map[string]string) map[string]string {
+	out := make(map[string]string, len(values)+2)
+	for key, value := range values {
+		out[key] = value
+	}
+	if key := strings.TrimSpace(out["OPENROUTER_API_KEY"]); key != "" {
+		if strings.TrimSpace(out["ANTHROPIC_BASE_URL"]) == "" {
+			out["ANTHROPIC_BASE_URL"] = "https://openrouter.ai/api"
+		}
+		if strings.TrimSpace(out["ANTHROPIC_AUTH_TOKEN"]) == "" {
+			out["ANTHROPIC_AUTH_TOKEN"] = key
+		}
+	}
+	return out
+}
+
 func validEnvironmentName(value string) bool {
 	if value == "" || strings.ContainsRune(value, '=') {
 		return false

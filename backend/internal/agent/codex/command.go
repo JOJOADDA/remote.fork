@@ -195,9 +195,6 @@ func (p *Provider) buildCmd(
 	if p.projects != nil {
 		if secrets, err := p.projects.ListSecrets(ctx, project.ID); err == nil {
 			for _, sec := range secrets {
-				if sec.Key == "OPENAI_API_KEY" {
-					continue
-				}
 				if _, backendIssued := req.RuntimeEnv[sec.Key]; backendIssued {
 					continue
 				}
@@ -205,7 +202,7 @@ func (p *Provider) buildCmd(
 			}
 		}
 	}
-	lxcArgs = append(lxcArgs, "--env", "OPENAI_API_KEY=")
+
 	for _, entry := range agent.RuntimeEnvironment(req.RuntimeEnv) {
 		lxcArgs = append(lxcArgs, "--env", entry)
 	}

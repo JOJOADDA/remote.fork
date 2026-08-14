@@ -18,6 +18,32 @@ func TestRuntimeEnvironmentIsSortedAndRejectsInvalidNames(t *testing.T) {
 	}
 }
 
+func TestWithOpenRouterClaudeEnvironment(t *testing.T) {
+	got := WithOpenRouterClaudeEnvironment(map[string]string{
+		"OPENROUTER_API_KEY": "sk-or-test",
+	})
+	if got["ANTHROPIC_BASE_URL"] != "https://openrouter.ai/api" {
+		t.Fatalf("ANTHROPIC_BASE_URL = %q", got["ANTHROPIC_BASE_URL"])
+	}
+	if got["ANTHROPIC_AUTH_TOKEN"] != "sk-or-test" {
+		t.Fatalf("ANTHROPIC_AUTH_TOKEN = %q", got["ANTHROPIC_AUTH_TOKEN"])
+	}
+
+	overridden := WithOpenRouterClaudeEnvironment(map[string]string{
+		"OPENROUTER_API_KEY":   "sk-or-test",
+		"ANTHROPIC_BASE_URL":   "https://gateway.test",
+		"ANTHROPIC_AUTH_TOKEN": "explicit-token",
+	})
+	if overridden["ANTHROPIC_BASE_URL"] != "https://gateway.test" || overridden["ANTHROPIC_AUTH_TOKEN"] != "explicit-token" {
+		t.Fatalf("explicit Claude environment was overwritten: %#v", overridden)
+	}
+
+	withoutKey := WithOpenRouterClaudeEnvironment(map[string]string{"OPENAI_API_KEY": "sk-test"})
+	if _, ok := withoutKey["ANTHROPIC_BASE_URL"]; ok {
+		t.Fatalf("unexpected Anthropic endpoint without OpenRouter key: %#v", withoutKey)
+	}
+}
+
 func TestWithRuntimeEnvironmentReplacesExistingValues(t *testing.T) {
 	got := WithRuntimeEnvironment(
 		[]string{"PATH=/bin", "REMOTE_SCHEDULE_GRANT=stale", "KEEP=yes"},
