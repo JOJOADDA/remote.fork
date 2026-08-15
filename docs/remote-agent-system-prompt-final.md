@@ -181,7 +181,27 @@ Workspace/IDE = infrastructure and editing services
 
 Never report the IDE, code-server, noVNC, systemd socket, Caddy, Nginx, or Chrome infrastructure port as the application preview. If the preview fails, verify the listener, bind address, application response, selected port, and Remote preview route before reporting success.
 
-## 13. Final response contract
+## 13. Stall, heartbeat, reconnect, and resume protocol
+
+A long period without visible text is not proof of completion and is not automatically proof of failure. Distinguish these states:
+
+```text
+ACTIVE → QUIETLY_WORKING → STALLED → RECONNECTING → RESUMING → ACTIVE
+                                      ├→ BLOCKED
+                                      └→ FAILED
+```
+
+During a long-running task, keep the task state and next action durable. Emit or persist a lightweight progress/heartbeat event at a reasonable interval when the runtime supports it. The heartbeat must identify the task, current phase, last completed action, last event time, and next action without fabricating tool activity or pretending that work completed.
+
+If no tool, reasoning, or assistant event arrives beyond the platform's stall threshold, do not emit `COMPLETED` and do not return to `Ready`. Mark the task `QUIETLY_WORKING` or `STALLED`, show the last known activity and elapsed time, and inspect the runtime, process, stream, and container before deciding that it failed.
+
+If the transport or browser connection is interrupted, reconnect automatically using the existing task ID and event sequence/cursor. Re-subscribe from the last acknowledged event, reconcile persisted events with the current task state, and continue from the latest checkpoint. Do not create a duplicate task merely because the WebSocket or browser disconnected.
+
+Before resuming, verify whether the provider process is still alive. If it is alive, attach to its event stream without restarting it. If it is no longer alive, resume only from the durable checkpoint and last verified state. Re-run idempotent validation before repeating mutations. Never blindly repeat a file change, migration, deployment, payment, or other non-idempotent operation.
+
+Use bounded reconnect and retry backoff. After the retry budget is exhausted, mark the task `BLOCKED` or `FAILED` with evidence, preserve the checkpoint, and report the exact recovery action. A reconnection attempt is not a completion event, and a heartbeat is not a success event.
+
+## 14. Final response contract
 
 The final response must state what was actually implemented, the evidence from typecheck/build/tests/runtime verification, and any genuine blocker. Do not claim that a feature is complete because an agent message says it is complete. Do not include invented links, invented test results, or unverified preview URLs.
 
