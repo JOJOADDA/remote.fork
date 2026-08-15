@@ -220,6 +220,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput, callerEmail string
 			log.Printf("projects: ensure %s failed: %v", m.ContainerName, err)
 			return s.repo.SetStatus(ctx, m.ID, StatusError, err.Error())
 		}
+		if seeder, ok := s.containerLifecycle.(interface {
+			SeedWebStarter(context.Context, Meta) error
+		}); ok {
+			if err := seeder.SeedWebStarter(ctx, m); err != nil {
+				log.Printf("projects: seed web starter in %s: %v", m.ContainerName, err)
+				return s.repo.SetStatus(ctx, m.ID, StatusError, err.Error())
+			}
+		}
 		// Push any pre-existing project secrets into the freshly launched
 		// container's env. Empty on first create; matters on recreate
 		// (delete + relaunch with secrets already stored).

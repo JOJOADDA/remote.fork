@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/futrx-com/remote.futrx.com/internal/integration/containers/starter"
 	serviceproject "github.com/futrx-com/remote.futrx.com/internal/service/project"
 )
 
@@ -76,6 +77,12 @@ func NewService(
 
 func (s *Service) Available() bool {
 	return s.runtime.Available()
+}
+
+// SeedWebStarter initializes only a fresh project workspace. Existing projects
+// are left untouched so the template cannot overwrite user code.
+func (s *Service) SeedWebStarter(_ context.Context, project serviceproject.Meta) error {
+	return starter.Seed(project.Cwd, project.Name)
 }
 
 func (s *Service) Busy(ctx context.Context, containerName string) (bool, error) {
