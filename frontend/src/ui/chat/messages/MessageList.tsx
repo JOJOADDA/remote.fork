@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import type { ChatStatus } from "../../../models/chat";
 import type { ChatMessageBlock } from "../../../models/chatMessage";
 import { Loader } from "../../primitives/icons";
+import { LiveProgress } from "./LiveProgress";
 import { MessageBlock } from "./MessageBlock";
 import { ThreadEmptyState } from "./ThreadEmptyState";
 
@@ -115,6 +116,8 @@ export function MessageList({
             />
           );
         })}
+
+        {status === "streaming" && <LiveProgress blocks={blocks} />}
 
         {error && (
           <div class="text-accent-red text-sm bg-accent-red/10 border border-accent-red/30 rounded-lg p-3">

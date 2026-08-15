@@ -1,4 +1,5 @@
 import type { ChatMeta } from "../../../models/chat";
+import { useEffect, useState } from "preact/hooks";
 import { providerDisplayLabel } from "../../../config/chat";
 import { Menu, MessageSquare } from "../../primitives/icons";
 
@@ -11,6 +12,24 @@ export function ThreadHeader({
   streaming: boolean;
   onHamburger: () => void;
 }) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!streaming) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [streaming]);
+
+  const liveLabel = streaming
+    ? `Working · live · ${elapsedSeconds}s`
+    : "Ready";
+
   return (
     <header class="codex-header top-chrome z-20 flex flex-none items-center border-b border-white/10 bg-[#101318] px-3 py-2 md:bg-[#101318]/95 md:backdrop-blur">
       <div class="codex-thread-heading flex min-w-0 flex-1 items-center gap-2 min-h-9">
@@ -38,8 +57,8 @@ export function ThreadHeader({
               title={streaming ? "Streaming" : "Ready"}
             />
           </div>
-          <div class="text-[11px] leading-4 text-ink-400 truncate">
-            {providerDisplayLabel(chat.provider)} · {streaming ? "Working" : "Ready"}
+          <div class="text-[11px] leading-4 text-ink-400 truncate" aria-live="polite">
+            {providerDisplayLabel(chat.provider)} · {liveLabel}
           </div>
         </div>
       </div>
