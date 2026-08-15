@@ -3,12 +3,14 @@ package stores
 import (
 	"fmt"
 
+	serviceagenttask "github.com/futrx-com/remote.futrx.com/internal/service/agenttask"
 	serviceauth "github.com/futrx-com/remote.futrx.com/internal/service/auth"
 	servicechat "github.com/futrx-com/remote.futrx.com/internal/service/chat"
 	serviceproject "github.com/futrx-com/remote.futrx.com/internal/service/project"
 	serviceschedule "github.com/futrx-com/remote.futrx.com/internal/service/schedule"
 	serviceuser "github.com/futrx-com/remote.futrx.com/internal/service/user"
 	serviceusersettings "github.com/futrx-com/remote.futrx.com/internal/service/usersettings"
+	"github.com/futrx-com/remote.futrx.com/internal/stores/fileagenttasks"
 	"github.com/futrx-com/remote.futrx.com/internal/stores/fileauth"
 	"github.com/futrx-com/remote.futrx.com/internal/stores/filechat"
 	"github.com/futrx-com/remote.futrx.com/internal/stores/fileproject"
@@ -24,6 +26,7 @@ type AuthStore interface {
 }
 
 type Stores struct {
+	AgentTasks     serviceagenttask.Repository
 	Chats          servicechat.Repository
 	Projects       serviceproject.Repository
 	ProjectSecrets serviceproject.SecretsRepository
@@ -35,6 +38,11 @@ type Stores struct {
 }
 
 func New(dataDir string) (Stores, error) {
+	agentTasks, err := fileagenttasks.New(dataDir)
+	if err != nil {
+		return Stores{}, fmt.Errorf("init agent task store: %w", err)
+	}
+
 	chats, err := filechat.New(dataDir)
 	if err != nil {
 		return Stores{}, fmt.Errorf("init chat store: %w", err)
@@ -71,6 +79,7 @@ func New(dataDir string) (Stores, error) {
 	}
 
 	return Stores{
+		AgentTasks:     agentTasks,
 		Chats:          chats,
 		Projects:       projects,
 		ProjectSecrets: projectSecrets,

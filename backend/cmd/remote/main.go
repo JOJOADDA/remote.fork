@@ -58,6 +58,7 @@ func main() {
 	)
 	tmuxClient := tmuxcli.New()
 	serviceSet, err := service.New(ctx, service.Dependencies{
+		AgentTasks:        storeSet.AgentTasks,
 		Chats:             storeSet.Chats,
 		Projects:          storeSet.Projects,
 		ProjectSecrets:    storeSet.ProjectSecrets,

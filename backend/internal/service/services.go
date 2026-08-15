@@ -10,6 +10,7 @@ import (
 	"github.com/futrx-com/remote.futrx.com/internal/agent/provisioning"
 	"github.com/futrx-com/remote.futrx.com/internal/integration/googleoauth"
 	agentauth "github.com/futrx-com/remote.futrx.com/internal/service/agent/auth"
+	serviceagenttask "github.com/futrx-com/remote.futrx.com/internal/service/agenttask"
 	serviceauth "github.com/futrx-com/remote.futrx.com/internal/service/auth"
 	servicechat "github.com/futrx-com/remote.futrx.com/internal/service/chat"
 	serviceproject "github.com/futrx-com/remote.futrx.com/internal/service/project"
@@ -33,6 +34,7 @@ type TmuxClient interface {
 }
 
 type Dependencies struct {
+	AgentTasks        serviceagenttask.Repository
 	Chats             servicechat.Repository
 	Projects          serviceproject.Repository
 	ProjectSecrets    serviceproject.SecretsRepository
@@ -63,6 +65,7 @@ type Services struct {
 	ChatAccess   *servicechat.AccessService
 	Projects     *serviceproject.Service
 	Prompt       *prompt.Service
+	Tasks        *serviceagenttask.Orchestrator
 	Schedules    *serviceschedule.Service
 	ScheduleCaps *schedulecapability.Registry
 	AgentAuth    *agentauth.Registry
@@ -153,6 +156,32 @@ func New(ctx context.Context, deps Dependencies) (Services, error) {
 		agents,
 		prompt.WithScheduleToolIssuer(scheduleCaps),
 	)
+	var taskOrchestrator *serviceagenttask.Orchestrator
+	if deps.AgentTasks != nil {
+		worker := func(runCtx context.Context, task serviceagenttask.Task) error {
+			run, err := promptService.Start(prompt.StartInput{
+				ChatID:        servicechat.ID(task.ChatID),
+				Prompt:        task.Prompt,
+				Autonomous:    true,
+				ParentContext: runCtx,
+			}, nil)
+			if err != nil {
+				return err
+			}
+			result, ok := <-run.Done
+			if !ok {
+				return errors.New("prompt completion channel closed without a result")
+			}
+			return result.Err
+		}
+		var err error
+		taskOrchestrator, err = serviceagenttask.NewOrchestrator(deps.AgentTasks, worker, serviceagenttask.Config{})
+		if err != nil {
+			return Services{}, fmt.Errorf("init task orchestrator: %w", err)
+		}
+		taskOrchestrator.Start(ctx)
+	}
+
 	scheduleService := serviceschedule.New(
 		deps.Schedules,
 		chatService,
@@ -183,6 +212,7 @@ func New(ctx context.Context, deps Dependencies) (Services, error) {
 		ChatAccess:   chatAccessService,
 		Projects:     projectService,
 		Prompt:       promptService,
+		Tasks:        taskOrchestrator,
 		Schedules:    scheduleService,
 		ScheduleCaps: scheduleCaps,
 		AgentAuth:    agentAuth,
