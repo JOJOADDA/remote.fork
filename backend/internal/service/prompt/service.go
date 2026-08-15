@@ -46,6 +46,9 @@ type StartInput struct {
 	ScheduledTaskID string
 	ScheduledRunID  string
 	ParentContext   context.Context
+	// Autonomous keeps the run independent from a browser/WebSocket lifetime.
+	// A nil ParentContext already has this behavior for backward compatibility.
+	Autonomous bool
 }
 
 type RunResult struct {
@@ -128,7 +131,7 @@ func (rnr *Service) Start(input StartInput, emitTransient func(ChatEvent)) (RunH
 		emitTransient = func(ChatEvent) {}
 	}
 	parentCtx := input.ParentContext
-	if parentCtx == nil {
+	if input.Autonomous || parentCtx == nil {
 		parentCtx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(parentCtx)

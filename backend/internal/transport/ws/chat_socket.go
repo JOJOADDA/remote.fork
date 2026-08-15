@@ -140,9 +140,10 @@ func (s *ChatSocket) handle(upgrader websocket.Upgrader, w http.ResponseWriter, 
 			return
 		}
 		var msg struct {
-			Type     string `json:"type"`
-			Text     string `json:"text,omitempty"`
-			ClientID string `json:"clientId,omitempty"`
+			Type       string `json:"type"`
+			Text       string `json:"text,omitempty"`
+			ClientID   string `json:"clientId,omitempty"`
+			Autonomous bool   `json:"autonomous,omitempty"`
 		}
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			continue
@@ -150,8 +151,9 @@ func (s *ChatSocket) handle(upgrader websocket.Upgrader, w http.ResponseWriter, 
 		switch msg.Type {
 		case "prompt":
 			_, err := s.runner.Start(serviceprompt.StartInput{
-				ChatID: id,
-				Prompt: msg.Text,
+				ChatID:     id,
+				Prompt:     msg.Text,
+				Autonomous: msg.Autonomous,
 				Actor: serviceprompt.Actor{
 					Email:   email,
 					IsAdmin: isAdmin,

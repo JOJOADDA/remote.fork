@@ -191,7 +191,7 @@ export function useChat(chatId: string): UseChatResult {
     if (!wsReady || !synced || !stream?.isOpen) return false;
     if (status !== "ready") return false;
     setStatus("streaming");
-    stream.sendPrompt(text, clientId);
+    stream.sendPrompt(text, clientId, true);
     return true;
   }, [status, wsReady, synced]);
 

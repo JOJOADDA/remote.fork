@@ -338,6 +338,56 @@ func TestStartCancelsRunWithParentContext(t *testing.T) {
 	}
 }
 
+func TestStartAutonomousRunIgnoresParentCancellation(t *testing.T) {
+	t.Parallel()
+	store, err := filechat.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta, err := store.Create(context.Background(), servicechat.Meta{
+		ID:       "aabbcc45",
+		Title:    "autonomous run",
+		Provider: servicechat.ProviderCodex,
+		Cwd:      t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	release := make(chan struct{})
+	provider := &schedulePromptProvider{
+		started: make(chan struct{}),
+		release: release,
+	}
+	registry := agent.NewRegistry()
+	if err := registry.Register(provider); err != nil {
+		t.Fatal(err)
+	}
+	service := New(store, nil, nil, runhub.New(store), registry)
+	parentCtx, cancel := context.WithCancel(context.Background())
+	handle, err := service.Start(StartInput{
+		ChatID:        meta.ID,
+		Prompt:        "continue after browser closes",
+		ParentContext: parentCtx,
+		Autonomous:    true,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-provider.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("provider did not start")
+	}
+
+	cancel()
+	close(release)
+	result := awaitScheduleRun(t, handle)
+	if result.Err != nil {
+		t.Fatalf("autonomous run error = %v, want nil", result.Err)
+	}
+}
+
 func awaitScheduleRun(t *testing.T, handle RunHandle) RunResult {
 	t.Helper()
 	select {
