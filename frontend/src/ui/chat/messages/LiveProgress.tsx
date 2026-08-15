@@ -1,3 +1,4 @@
+import type { ChatStatus } from "../../../models/chat";
 import type { ChatMessageBlock } from "../../../models/chatMessage";
 
 type StageState = "done" | "active" | "queued";
@@ -24,7 +25,7 @@ function Stage({ state, label, detail }: { state: StageState; label: string; det
   );
 }
 
-export function LiveProgress({ blocks }: { blocks: ChatMessageBlock[] }) {
+export function LiveProgress({ blocks, status }: { blocks: ChatMessageBlock[]; status: ChatStatus }) {
   const assistant = [...blocks].reverse().find((block) => block.type === "assistant");
   const parts = assistant?.type === "assistant" ? assistant.parts : [];
   const tools = parts.filter((part) => part.kind === "tool");
@@ -32,6 +33,7 @@ export function LiveProgress({ blocks }: { blocks: ChatMessageBlock[] }) {
   const hasThinking = parts.some((part) => part.kind === "thinking");
   const hasText = parts.some((part) => part.kind === "text");
   const hasTools = tools.length > 0;
+  const isActive = status === "streaming";
 
   return (
     <section
@@ -43,14 +45,18 @@ export function LiveProgress({ blocks }: { blocks: ChatMessageBlock[] }) {
       <div class="mb-2 flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center gap-2">
           <span class="h-2 w-2 flex-none rounded-full bg-accent-blue animate-pulse" aria-hidden="true" />
-          <span class="truncate text-[12px] font-medium text-ink-100">Live progress</span>
+          <span class="truncate text-[12px] font-medium text-ink-100">
+            {isActive ? "Agent working" : "Agent activity"}
+          </span>
         </div>
-        <span class="text-[11px] text-ink-500">Updates as activity arrives</span>
+        <span class="shrink-0 text-[11px] text-ink-500">
+          {isActive ? "Live · waiting for result" : "Complete"}
+        </span>
       </div>
       <div class="space-y-1.5">
-        <Stage state={hasThinking || hasText || hasTools ? "done" : "active"} label="Understand request" />
+        <Stage state={hasThinking || hasText || hasTools ? "done" : isActive ? "active" : "queued"} label="Understand request" />
         <Stage
-          state={hasThinking ? "done" : hasTools || hasText ? "done" : "active"}
+          state={hasThinking ? "done" : hasTools || hasText ? "done" : isActive ? "active" : "queued"}
           label="Reason and plan"
         />
         <Stage
@@ -58,7 +64,7 @@ export function LiveProgress({ blocks }: { blocks: ChatMessageBlock[] }) {
           label="Use tools"
           detail={activeTool?.kind === "tool" ? activeTool.name : hasTools ? `${tools.length} completed` : undefined}
         />
-        <Stage state={hasText && !activeTool ? "active" : "queued"} label="Prepare response" />
+        <Stage state={hasText && !activeTool ? (isActive ? "active" : "done") : isActive ? "active" : "queued"} label="Prepare response" />
       </div>
     </section>
   );

@@ -117,7 +117,7 @@ export function MessageList({
           );
         })}
 
-        {status === "streaming" && <LiveProgress blocks={blocks} />}
+        {status === "streaming" && <LiveProgress blocks={blocks} status={status} />}
 
         {error && (
           <div class="text-accent-red text-sm bg-accent-red/10 border border-accent-red/30 rounded-lg p-3">

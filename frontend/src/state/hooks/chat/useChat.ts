@@ -57,6 +57,10 @@ export function useChat(chatId: string): UseChatResult {
   const pendingEventsRef = useRef<ChatEvent[]>([]);
   const pendingFrameRef = useRef<number | null>(null);
   const lastSeqRef = useRef(0);
+  // A prompt has been accepted locally and must remain visibly active until
+  // the persisted terminal event arrives. This prevents a reconnect's stale
+  // sync=false snapshot from flashing the header back to Ready mid-run.
+  const awaitingTerminalRef = useRef(false);
 
   function clearPendingEvents() {
     if (pendingFrameRef.current !== null) {
@@ -98,6 +102,7 @@ export function useChat(chatId: string): UseChatResult {
     setSynced(false);
     setPromptOutcome(null);
     setLoadingOlder(false);
+    awaitingTerminalRef.current = false;
     lastSeqRef.current = 0;
 
     (async () => {
@@ -150,7 +155,9 @@ export function useChat(chatId: string): UseChatResult {
           if (streamRef.current !== stream) return;
           if (event.type === "sync") {
             setSynced(true);
-            setStatus(event.running ? "streaming" : "ready");
+            if (event.running || !awaitingTerminalRef.current) {
+              setStatus(event.running ? "streaming" : "ready");
+            }
             return;
           }
           if (
@@ -165,6 +172,9 @@ export function useChat(chatId: string): UseChatResult {
               setPromptOutcome({ clientId, accepted: event.subtype === "prompt_accepted" });
             }
             return;
+          }
+          if (event.type === "complete" || event.type === "error") {
+            awaitingTerminalRef.current = false;
           }
           enqueueEvent(event);
         },
@@ -190,6 +200,7 @@ export function useChat(chatId: string): UseChatResult {
     const stream = streamRef.current;
     if (!wsReady || !synced || !stream?.isOpen) return false;
     if (status !== "ready") return false;
+    awaitingTerminalRef.current = true;
     setStatus("streaming");
     stream.sendPrompt(text, clientId, true);
     return true;
@@ -197,6 +208,7 @@ export function useChat(chatId: string): UseChatResult {
 
   const cancel = useCallback(() => {
     const stream = streamRef.current;
+    awaitingTerminalRef.current = false;
     if (stream?.isOpen) stream.cancel();
   }, []);
 
