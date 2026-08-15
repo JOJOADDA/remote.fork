@@ -288,6 +288,28 @@ func TestCodexAzureArgsUseResponsesV1Provider(t *testing.T) {
 	}
 }
 
+func TestCodexAzureArgsNormalizeResponsesEndpoint(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		endpoint string
+		want     string
+	}{
+		{name: "resource root", endpoint: "https://resource.services.ai.azure.com", want: "https://resource.services.ai.azure.com/openai/v1"},
+		{name: "responses v1", endpoint: "https://resource.services.ai.azure.com/openai/v1/responses", want: "https://resource.services.ai.azure.com/openai/v1"},
+		{name: "responses v1 with slash", endpoint: "https://resource.services.ai.azure.com/openai/v1/responses/", want: "https://resource.services.ai.azure.com/openai/v1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			args := codexAzureArgs(map[string]string{
+				"AZURE_OPENAI_API_KEY":  "azure-test-key",
+				"AZURE_OPENAI_ENDPOINT": tc.endpoint,
+			}, "gpt-5.3-codex")
+			if !slices.Contains(args, "model_providers.azure.base_url="+tc.want) {
+				t.Fatalf("Azure args missing normalized base URL %q: %#v", tc.want, args)
+			}
+		})
+	}
+}
+
 func TestBuildCmdPassesRuntimeEnvironmentOnHostAndIntoContainer(t *testing.T) {
 	runtimeEnv := map[string]string{
 		"REMOTE_SCHEDULE_API":   "https://remote.test/agent-api/schedules",

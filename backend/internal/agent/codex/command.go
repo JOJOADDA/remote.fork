@@ -259,6 +259,11 @@ func codexAzureArgs(values map[string]string, requestedModel string) []string {
 		return nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]), "/")
+	// Azure endpoints may be copied as the resource root, /openai/v1, or
+	// the complete /openai/v1/responses URL. Codex appends /responses itself.
+	for strings.HasSuffix(baseURL, "/responses") {
+		baseURL = strings.TrimSuffix(baseURL, "/responses")
+	}
 	if !strings.HasSuffix(baseURL, "/openai/v1") {
 		baseURL += "/openai/v1"
 	}
