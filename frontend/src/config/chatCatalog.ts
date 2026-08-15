@@ -64,12 +64,12 @@ const MODEL_OPTIONS_BY_PROVIDER = {
     { value: "haiku", label: "Haiku", sub: "fast" },
   ],
   codex: [
-    { value: "", label: "Auto", sub: "codex default" },
-    { value: "gpt-5.6-sol", label: "GPT-5.6 Sol", sub: "flagship preview" },
-    { value: "gpt-5.5", label: "GPT-5.5", sub: "frontier coding" },
-    { value: "gpt-5.4", label: "GPT-5.4", sub: "strong everyday coding" },
-    { value: "gpt-5.4-mini", label: "GPT-5.4 Mini", sub: "fast" },
-    { value: "gpt-5.3-codex", label: "GPT-5.3 Codex", sub: "coding optimized" },
+    { value: "", label: "Auto", sub: "configured provider default" },
+    { value: "gpt-5.6-terra", label: "GPT-5.6 Terra", sub: "Azure Responses deployment" },
+    { value: "gpt-5.3-codex", label: "GPT-5.3 Codex", sub: "Azure Responses + tools" },
+    { value: "gpt-5.2-codex", label: "GPT-5.2 Codex", sub: "Azure Responses + tools" },
+    { value: "gpt-5.1-codex", label: "GPT-5.1 Codex", sub: "Azure Responses + tools" },
+    { value: "gpt-5-codex", label: "GPT-5 Codex", sub: "Azure Responses + tools" },
   ],
   kimi: [{ value: "", label: "Auto", sub: "kimi default" }],
   // agy picks its own Gemini engine; the CLI accepts --model but publishes no
