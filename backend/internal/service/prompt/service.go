@@ -294,7 +294,11 @@ func (rnr *Service) runPromptAs(
 		}
 	}
 
+	toolActivitySeen := false
+	lastAssistantText := strings.Builder{}
+	var pendingComplete *agent.Event
 	run := func(runPrompt, runResumeID string) error {
+		pendingComplete = nil
 		return provider.Run(ctx, agent.RunRequest{
 			Provider:       providerID,
 			ConversationID: string(id),
@@ -314,11 +318,31 @@ func (rnr *Service) runPromptAs(
 			EnableScheduleTools: enableScheduleTools,
 			RuntimeEnv:          runtimeEnv,
 		}, func(ev agent.Event) {
+			switch ev.Type {
+			case agent.EventToolStarted, agent.EventToolCompleted:
+				toolActivitySeen = true
+			case agent.EventAssistantTextDelta:
+				lastAssistantText.WriteString(ev.Text)
+			case agent.EventRunCompleted:
+				copy := ev
+				pendingComplete = &copy
+				return
+			}
 			rnr.emitAgentEvent(ctx, id, ev, emit)
 		})
 	}
 
 	err = run(effectivePrompt, resumeIDForRun)
+	if err == nil && meta.Mode == "full-auto" && shouldContinueAfterPromise(prompt, lastAssistantText.String(), toolActivitySeen) {
+		emit(ChatEvent{T: time.Now().UnixMilli(), Type: "system", Subtype: "autonomous_continuation", Message: "The agent acknowledged the request without using tools; continuing execution."})
+		toolActivitySeen = false
+		lastAssistantText.Reset()
+		continuation := "Continue the implementation now. Do not acknowledge or describe future work. Use the available tools and complete the original request. Return only after the requested changes and verification are actually finished. Original request:\n\n" + prompt
+		err = run(continuation, "")
+	}
+	if err == nil && pendingComplete != nil {
+		rnr.emitAgentEvent(ctx, id, *pendingComplete, emit)
+	}
 	if errors.Is(err, agent.ErrSessionNotFound) && resumeIDForRun != "" {
 		_, _ = rnr.store.Update(ctx, id, func(m *ChatMeta) {
 			clearSessionIDForProvider(m, providerID)
@@ -397,6 +421,32 @@ func sessionIDForProvider(meta ChatMeta, provider agent.ProviderID) string {
 	}
 }
 
+func shouldContinueAfterPromise(request, response string, toolActivitySeen bool) bool {
+	if toolActivitySeen || strings.TrimSpace(response) == "" {
+		return false
+	}
+	requestLower := strings.ToLower(request)
+	responseLower := strings.ToLower(response)
+	implementationRequest := containsAny(requestLower, []string{
+		"implement", "create", "build", "add", "fix", "modify", "update", "refactor", "write", "deploy", "run", "test",
+		"نفذ", "أنشئ", "انشئ", "ابن", "أضف", "اضف", "أصلح", "اصلح", "عدل", "حدّث", "حدث", "اكتب", "شغّل", "شغل", "اختبر",
+	})
+	promise := containsAny(responseLower, []string{
+		"i will", "i'll", "let me", "i am going to", "i'm going to", "i'll get back", "i will return",
+		"سأنفذ", "ساقوم", "سأقوم", "سأبدأ", "سأعمل", "سأعود", "سأضيف", "سأجهز", "سأكمل", "سوف أنفذ", "سوف أقوم",
+	})
+	return implementationRequest && promise
+}
+
+func containsAny(value string, terms []string) bool {
+	for _, term := range terms {
+		if strings.Contains(value, term) {
+			return true
+		}
+	}
+	return false
+}
+
 func promptForMode(mode, prompt string) string {
 	switch mode {
 	case "plan":
@@ -406,7 +456,7 @@ func promptForMode(mode, prompt string) string {
 	case "debug":
 		return "Work in debugging mode. Reproduce or localize the issue first, explain the failing path, then make the smallest fix that addresses the root cause.\n\n" + prompt
 	case "full-auto":
-		return "Work in full-auto mode. Carry the task through implementation, verification, and a concise outcome unless you hit a hard blocker.\n\n" + prompt
+		return "Work in full-auto mode. Do not stop after acknowledging the request or promising future work. Start the implementation now, use the available tools, continue through verification, and return only after the requested result is actually completed. If a hard blocker prevents completion, report the blocker and evidence instead of promising to return later. For web work, complete Inspect, Design, Implement, Typecheck, Build, Test, Fix, Polish, and Verify before the final response.\n\n" + prompt
 	case "chat":
 		return "Work in chat mode. Answer directly and avoid changing files unless the user clearly asks for implementation.\n\n" + prompt
 	default:

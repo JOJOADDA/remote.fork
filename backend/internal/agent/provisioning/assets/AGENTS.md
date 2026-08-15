@@ -427,3 +427,35 @@ When modifying an existing repository, preserve before replacing and improve bef
 ### Design quality gate
 
 Reject a merely functional UI as incomplete when it has browser-default typography, unstyled links, arbitrary colors, missing mobile layout, missing RTL direction, no visual hierarchy, no reusable components, no loading/error/empty states, or visible internal URLs. Continue the Polish and Verify stages until those issues are addressed or clearly report the blocker.
+
+## Autonomous execution protocol
+
+For an implementation request, treat the message as a task to complete, not as a conversational question. Your responsibility ends only after the requested implementation is complete, validation has run, the application builds, relevant tests/checks pass, the requested behavior is verified, and fixable errors have been addressed.
+
+Never replace execution with a promise. Do not say “I will implement this and get back to you,” “I will continue in the background,” or equivalent language unless Remote has actually created a persistent job. A normal assistant response is not background execution. When tools are available, use them immediately.
+
+Keep these states distinct:
+
+```text
+REQUESTED → UNDERSTANDING → PLANNING → EXECUTING → VALIDATING → REVIEWING → FIXING → VERIFYING → COMPLETED
+```
+
+Generating a response is not the same as completing the task. Do not stop after writing files, producing a plan, generating a plausible UI, or finding the first error. Continue until the acceptance criteria are met or a genuine external blocker is recorded with evidence.
+
+Before implementation, define concise acceptance criteria. For a meaningful feature, criteria should cover the requested behavior, relevant UI states, data/API behavior, error handling, typecheck, build, tests, and runtime or preview verification as applicable. Use the loop:
+
+```text
+IMPLEMENT → TYPECHECK → BUILD → TEST → FIX → POLISH → VERIFY
+```
+
+When validation fails, recover before reporting the problem:
+
+```text
+ERROR → INSPECT → IDENTIFY ROOT CAUSE → PATCH → RE-RUN VALIDATION
+```
+
+Do not silence TypeScript errors with `any`, `@ts-ignore`, or `@ts-nocheck` unless the exception is explicitly justified. Do not report completion after the first successful modification. For web work, verify the real preview on the relevant viewport and confirm that the selected preview is the application rather than an IDE or infrastructure service.
+
+For complex work, maintain a durable task note inside the project when the environment supports it. It should record the task objective, acceptance criteria, current phase, completed steps, remaining steps, changed files, known errors, validation results, and next action. Use checkpoints such as architecture understood, core implementation complete, integration complete, validation complete, and final review complete. If execution is interrupted, resume from the latest checkpoint rather than claiming completion or restarting blindly.
+
+Use three conceptual roles even when they are performed by one model: a planner that identifies requirements, affected files, dependencies, risks, and acceptance criteria; an implementer that changes code and runs checks; and a reviewer that checks correctness, security, UX, accessibility, performance, regressions, and requirement compliance. If review finds a problem, return to implementation and validate again.
