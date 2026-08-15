@@ -160,11 +160,16 @@ func New(ctx context.Context, deps Dependencies) (Services, error) {
 	if deps.AgentTasks != nil {
 		worker := func(runCtx context.Context, task serviceagenttask.Task) error {
 			run, err := promptService.Start(prompt.StartInput{
-				ChatID:        servicechat.ID(task.ChatID),
-				Prompt:        task.Prompt,
+				ChatID: servicechat.ID(task.ChatID),
+				Prompt: task.Prompt,
+				Actor: prompt.Actor{
+					Email:   task.ActorEmail,
+					IsAdmin: task.ActorIsAdmin,
+				},
 				Autonomous:    true,
 				ParentContext: runCtx,
 			}, nil)
+
 			if err != nil {
 				return err
 			}

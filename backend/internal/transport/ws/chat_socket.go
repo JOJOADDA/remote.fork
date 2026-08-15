@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	serviceagenttask "github.com/futrx-com/remote.futrx.com/internal/service/agenttask"
 	servicechat "github.com/futrx-com/remote.futrx.com/internal/service/chat"
 	serviceproject "github.com/futrx-com/remote.futrx.com/internal/service/project"
 	serviceprompt "github.com/futrx-com/remote.futrx.com/internal/service/prompt"
@@ -26,6 +27,11 @@ type PromptRunner interface {
 	CancelPrompt(id servicechat.ID) bool
 }
 
+type DurableTaskRunner interface {
+	Submit(context.Context, serviceagenttask.CreateInput) (serviceagenttask.Task, error)
+	CancelChat(context.Context, string) error
+}
+
 // ProjectAccessChecker is the subset of the auth gate the chat WS needs:
 // resolve the caller from the request and verify they can reach a project.
 // Implemented by a small adapter wired up in transport.go.
@@ -38,6 +44,7 @@ type ChatSocket struct {
 	chats  ChatLookup
 	hub    *runhub.Hub
 	runner PromptRunner
+	tasks  DurableTaskRunner
 	access ProjectAccessChecker
 }
 
@@ -46,6 +53,11 @@ func NewChatSocket(chats ChatLookup, hub *runhub.Hub, runner PromptRunner) *Chat
 }
 
 // WithAccessChecker turns on per-chat project-membership gating.
+func (s *ChatSocket) WithTaskOrchestrator(tasks DurableTaskRunner) *ChatSocket {
+	s.tasks = tasks
+	return s
+}
+
 func (s *ChatSocket) WithAccessChecker(access ProjectAccessChecker) *ChatSocket {
 	s.access = access
 	return s
@@ -150,25 +162,55 @@ func (s *ChatSocket) handle(upgrader websocket.Upgrader, w http.ResponseWriter, 
 		}
 		switch msg.Type {
 		case "prompt":
-			_, err := s.runner.Start(serviceprompt.StartInput{
-				ChatID:     id,
-				Prompt:     msg.Text,
-				Autonomous: msg.Autonomous,
-				Actor: serviceprompt.Actor{
-					Email:   email,
-					IsAdmin: isAdmin,
-				},
-			}, sub.SendTransient)
+			var err error
+			if s.tasks != nil {
+				_, err = s.tasks.Submit(context.Background(), serviceagenttask.CreateInput{
+					ChatID:       string(id),
+					ProjectID:    string(meta.ProjectID),
+					ActorEmail:   email,
+					ActorIsAdmin: isAdmin,
+					Prompt:       msg.Text,
+					Mode:         meta.Mode,
+					Provider:     string(meta.Provider),
+					Model:        meta.Model,
+				})
+			} else {
+				_, err = s.runner.Start(serviceprompt.StartInput{
+					ChatID:     id,
+					Prompt:     msg.Text,
+					Autonomous: msg.Autonomous,
+					Actor: serviceprompt.Actor{
+						Email:   email,
+						IsAdmin: isAdmin,
+					},
+				}, sub.SendTransient)
+			}
+
 			if msg.ClientID != "" {
 				sub.SendTransient(promptAckEvent(msg.ClientID, err == nil))
 			}
 		case "cancel":
-			if !s.runner.CancelPrompt(id) {
+			cancelErr := error(nil)
+			cancelled := false
+			if s.tasks != nil {
+				cancelErr = s.tasks.CancelChat(context.Background(), string(id))
+				cancelled = cancelErr == nil
+			} else {
+				cancelled = s.runner.CancelPrompt(id)
+			}
+			if !cancelled {
+
 				sub.SendTransient(servicechat.Event{
-					T:       time.Now().UnixMilli(),
-					Type:    "error",
-					Message: "no prompt is currently running",
+					T:    time.Now().UnixMilli(),
+					Type: "error",
+					Message: func() string {
+						if cancelErr != nil {
+							return cancelErr.Error()
+						}
+						return "no prompt is currently running"
+					}(),
 				})
+
 			}
 		}
 	}

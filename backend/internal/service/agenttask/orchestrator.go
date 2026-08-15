@@ -64,6 +64,22 @@ func (o *Orchestrator) Submit(ctx context.Context, input CreateInput) (Task, err
 	return task, nil
 }
 
+func (o *Orchestrator) CancelChat(ctx context.Context, chatID string) error {
+	tasks, err := o.repo.ListActiveByChat(ctx, chatID)
+	if err != nil {
+		return err
+	}
+	if len(tasks) == 0 {
+		return ErrNotFound
+	}
+	for _, task := range tasks {
+		if err := o.Cancel(ctx, task.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (o *Orchestrator) Cancel(ctx context.Context, id string) error {
 	o.mu.Lock()
 	cancel := o.active[id]

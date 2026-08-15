@@ -39,9 +39,12 @@ func (s State) Terminal() bool {
 }
 
 type Task struct {
-	ID             string          `json:"id"`
-	ChatID         string          `json:"chatId"`
-	ProjectID      string          `json:"projectId"`
+	ID           string `json:"id"`
+	ChatID       string `json:"chatId"`
+	ProjectID    string `json:"projectId"`
+	ActorEmail   string `json:"actorEmail,omitempty"`
+	ActorIsAdmin bool   `json:"actorIsAdmin,omitempty"`
+
 	Provider       string          `json:"provider"`
 	Model          string          `json:"model,omitempty"`
 	Prompt         string          `json:"prompt"`
@@ -83,14 +86,16 @@ type Checkpoint struct {
 }
 
 type CreateInput struct {
-	ID         string
-	ChatID     string
-	ProjectID  string
-	Provider   string
-	Model      string
-	Prompt     string
-	Mode       string
-	Acceptance json.RawMessage
+	ID           string
+	ChatID       string
+	ProjectID    string
+	ActorEmail   string
+	ActorIsAdmin bool
+	Provider     string
+	Model        string
+	Prompt       string
+	Mode         string
+	Acceptance   json.RawMessage
 }
 
 type UpdateFunc func(*Task)
@@ -100,6 +105,7 @@ type Repository interface {
 	Get(context.Context, string) (Task, error)
 	Update(context.Context, string, UpdateFunc) (Task, error)
 	ListRecoverable(context.Context, time.Time) ([]Task, error)
+	ListActiveByChat(context.Context, string) ([]Task, error)
 	AppendEvent(context.Context, string, Event) (Event, error)
 	EventsAfter(context.Context, string, int64) ([]Event, error)
 	SaveCheckpoint(context.Context, Checkpoint) (Checkpoint, error)

@@ -88,7 +88,7 @@ func (s *Store) Create(ctx context.Context, input agenttask.CreateInput) (agentt
 		return agenttask.Task{}, agenttask.ErrInvalidTaskID
 	}
 	now := time.Now().UTC()
-	task := agenttask.Task{ID: id, ChatID: input.ChatID, ProjectID: input.ProjectID, Provider: input.Provider, Model: input.Model, Prompt: input.Prompt, Mode: input.Mode, State: agenttask.StateQueued, Phase: "requested", Acceptance: input.Acceptance, LastActivityAt: now, CreatedAt: now, UpdatedAt: now, RetryLimit: 3}
+	task := agenttask.Task{ID: id, ChatID: input.ChatID, ProjectID: input.ProjectID, ActorEmail: input.ActorEmail, ActorIsAdmin: input.ActorIsAdmin, Provider: input.Provider, Model: input.Model, Prompt: input.Prompt, Mode: input.Mode, State: agenttask.StateQueued, Phase: "requested", Acceptance: input.Acceptance, LastActivityAt: now, CreatedAt: now, UpdatedAt: now, RetryLimit: 3}
 	lock := s.lock(id)
 	lock.Lock()
 	defer lock.Unlock()
@@ -199,6 +199,31 @@ func (s *Store) ListRecoverable(ctx context.Context, before time.Time) ([]agentt
 	}
 	sort.Slice(tasks, func(i, j int) bool { return tasks[i].CreatedAt.Before(tasks[j].CreatedAt) })
 	return tasks, nil
+}
+
+func (s *Store) ListActiveByChat(ctx context.Context, chatID string) ([]agenttask.Task, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := make([]agenttask.Task, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() || !validID(entry.Name()) {
+			continue
+		}
+		task, err := s.Get(ctx, entry.Name())
+		if err != nil || task.ChatID != chatID || task.State.Terminal() {
+			continue
+		}
+		out = append(out, task)
+	}
+	return out, nil
 }
 
 func (s *Store) AppendEvent(ctx context.Context, id string, event agenttask.Event) (agenttask.Event, error) {

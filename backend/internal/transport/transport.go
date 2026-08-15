@@ -67,6 +67,9 @@ func NewHTTPHandler(deps Dependencies) (http.Handler, error) {
 		return nil, err
 	}
 	chatSocket := wstransport.NewChatSocket(deps.Services.Chats, deps.Services.Runs, deps.Services.Prompt)
+	if deps.Services.Tasks != nil {
+		chatSocket = chatSocket.WithTaskOrchestrator(deps.Services.Tasks)
+	}
 	terminalSocket := wstransport.NewContainerTerminalSocket(deps.Services.Chats, deps.Services.Projects)
 	workspaceSocket := wstransport.NewWorkspaceSocket(
 		deps.Services.Chats,
