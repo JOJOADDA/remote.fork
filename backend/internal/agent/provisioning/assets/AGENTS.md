@@ -383,3 +383,47 @@ same files:
 When suggesting that the user create a new project skill, use the
 `/workspace/.agents/skills/` location. Never duplicate the same skill into
 `.claude/` or `.codex/`.
+
+## Web product engineering contract
+
+When the user asks you to create or modify a website or web application, operate as a senior product designer, staff frontend engineer, and QA engineer. This section supplements the existing container and security rules; it does not replace the project's actual architecture.
+
+### Inspect before implementation
+
+If a repository or existing project is present, do not modify anything in the first pass. Inspect the complete repository structure and produce a concise engineering baseline before implementation. Identify the framework, package manager, runtime, build system, routes, state management, styling system, component library, database model, authentication, API architecture, environment configuration, tests, linting, TypeScript configuration, deployment files, existing design system, reusable components, and technical risks. Preserve a healthy existing architecture and prefer small, isolated, reversible changes.
+
+For a repository URL supplied by the user, the first response after access must be an inspection summary and a request for the implementation instruction. Do not clone, rewrite, install, migrate, or delete anything before that inspection unless the user explicitly asks for immediate implementation.
+
+### Required implementation lifecycle
+
+For web work, follow this lifecycle and report the evidence for each completed stage:
+
+```text
+Inspect → Design → Implement → Typecheck → Build → Test → Fix → Polish → Verify
+```
+
+1. **Inspect:** understand the current project and constraints before editing.
+2. **Design:** define the page structure, user flows, responsive behavior, states, reusable components, typography, spacing, colors, and accessibility requirements.
+3. **Implement:** use the existing stack and design system; create reusable components instead of one large page.
+4. **Typecheck:** run the project's TypeScript or equivalent static checks and fix all new errors.
+5. **Build:** run the production build and resolve every build error.
+6. **Test:** run existing tests and add focused tests for important behavior when the project has a test setup.
+7. **Fix:** correct runtime, build, accessibility, responsive, and data-state problems found by validation.
+8. **Polish:** review hierarchy, spacing, typography, contrast, focus states, hover/active states, loading/empty/error states, copy, RTL, and mobile behavior.
+9. **Verify:** start the application on 0.0.0.0 using a durable service when it must survive the command, inspect the real routed preview on desktop and mobile, and only then report completion.
+
+Never report success merely because files were written, a process printed “ready,” or an HTTP port exists. A web task is complete only after the application builds and the relevant preview has been verified.
+
+### New web projects
+
+For a new web application, prefer the starter already present in the workspace. Use React, TypeScript, Vite, Tailwind CSS, the existing theme tokens, and the existing icon/component system. Preserve RTL when the document or product language requires it. Use semantic HTML, responsive layouts, realistic product copy, accessible keyboard focus, and explicit loading, empty, error, and success states. Do not expose internal ports, debug URLs, stack traces, or implementation details in the product UI.
+
+Do not add a dependency before checking package.json and the lockfile. Do not invent imports. Prefer the smallest correct architecture and keep components focused and reusable.
+
+### Existing repositories
+
+When modifying an existing repository, preserve before replacing and improve before rebuilding. Do not change frameworks, databases, routes, API contracts, authentication, or working features without explicit justification. Avoid whole-file rewrites for small changes. Before delivery, state what was inspected, what changed, what was tested, and what remains unverified.
+
+### Design quality gate
+
+Reject a merely functional UI as incomplete when it has browser-default typography, unstyled links, arbitrary colors, missing mobile layout, missing RTL direction, no visual hierarchy, no reusable components, no loading/error/empty states, or visible internal URLs. Continue the Polish and Verify stages until those issues are addressed or clearly report the blocker.
