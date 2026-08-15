@@ -20,7 +20,7 @@ func (p *recoveryProvider) ID() agent.ProviderID                     { return ag
 func (p *recoveryProvider) Parser(agent.RunRequest) agent.LineParser { return nil }
 func (p *recoveryProvider) Run(_ context.Context, req agent.RunRequest, emit func(agent.Event)) error {
 	p.requests = append(p.requests, req)
-	if len(p.requests) == 1 {
+	if req.ResumeID != "" {
 		return agent.ErrSessionNotFound
 	}
 	emit(agent.Event{
@@ -68,15 +68,15 @@ func TestRunPromptRecoversMissingCodexSessionFromVisibleTranscript(t *testing.T)
 	}
 	service.runPrompt(ctx, meta.ID, "current question", emit, emit)
 
-	if len(provider.requests) != 2 {
-		t.Fatalf("requests = %d, want stale resume plus one retry", len(provider.requests))
+	if len(provider.requests) != 1 {
+		t.Fatalf("requests = %d, want one fresh API turn", len(provider.requests))
 	}
-	if provider.requests[0].ResumeID != "missing-thread" || provider.requests[1].ResumeID != "" {
-		t.Fatalf("resume ids = %q, %q", provider.requests[0].ResumeID, provider.requests[1].ResumeID)
+	if provider.requests[0].ResumeID != "" {
+		t.Fatalf("resume id = %q, want empty for API turn", provider.requests[0].ResumeID)
 	}
 	for _, want := range []string{"earlier question", "earlier answer", "Current user request:\ncurrent question"} {
-		if !strings.Contains(provider.requests[1].Prompt, want) {
-			t.Fatalf("recovery prompt missing %q:\n%s", want, provider.requests[1].Prompt)
+		if !strings.Contains(provider.requests[0].Prompt, want) {
+			t.Fatalf("visible transcript missing %q:\n%s", want, provider.requests[0].Prompt)
 		}
 	}
 
@@ -99,8 +99,8 @@ func TestRunPromptRecoversMissingCodexSessionFromVisibleTranscript(t *testing.T)
 			t.Fatalf("unexpected recovery error: %s", event.Message)
 		}
 	}
-	if !foundRecovery || !foundAnswer {
-		t.Fatalf("events missing recovery markers: %#v", events)
+	if foundRecovery || !foundAnswer {
+		t.Fatalf("unexpected recovery markers or missing answer: %#v", events)
 	}
 }
 

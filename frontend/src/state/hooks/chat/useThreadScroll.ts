@@ -27,6 +27,20 @@ export function useThreadScroll(resetKey: string, scrollKey: unknown) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const handleViewportResize = () => {
+      if (!userScrolledRef.current) scrollToBottom("auto");
+    };
+    viewport.addEventListener("resize", handleViewportResize);
+    viewport.addEventListener("scroll", handleViewportResize);
+    return () => {
+      viewport.removeEventListener("resize", handleViewportResize);
+      viewport.removeEventListener("scroll", handleViewportResize);
+    };
+  }, []);
+
   function onScroll() {
     const element = scrollRef.current;
     if (!element) return;
@@ -37,7 +51,9 @@ export function useThreadScroll(resetKey: string, scrollKey: unknown) {
 
   function scrollToBottom(behavior: ScrollBehavior) {
     requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ block: "end", behavior });
+      const element = scrollRef.current;
+      if (!element) return;
+      element.scrollTo({ top: element.scrollHeight, behavior });
     });
   }
 

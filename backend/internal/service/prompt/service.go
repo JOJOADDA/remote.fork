@@ -237,8 +237,17 @@ func (rnr *Service) runPromptAs(
 		stopBrowserKeepalive := rnr.keepAgentBrowserActivity(ctx, serviceproject.ID(meta.ProjectID))
 		defer stopBrowserKeepalive()
 	}
-	if resumeID == "" {
+	// Codex Responses API providers can reject native rollout replay when a
+	// prior assistant item contains provider-specific content metadata. Use the
+	// persisted visible transcript for every Codex turn instead.
+	if resumeID == "" || providerID == agent.ProviderCodex {
 		effectivePrompt = promptWithVisibleHistory(priorEvents, effectivePrompt)
+	}
+	resumeIDForRun := resumeID
+	forkForRun := meta.ForkPending
+	if providerID == agent.ProviderCodex {
+		resumeIDForRun = ""
+		forkForRun = false
 	}
 	effectivePrompt = promptWithSelectedSkills(providerID, promptSkills, effectivePrompt)
 
@@ -292,7 +301,8 @@ func (rnr *Service) runPromptAs(
 			Mode:           meta.Mode,
 			ResumeID:       runResumeID,
 			ProjectID:      string(meta.ProjectID),
-			Fork:           meta.ForkPending,
+			Fork:           forkForRun,
+
 			Preferences: agent.RunPreferences{
 				ReasoningEffort: agent.ReasoningEffort(meta.ReasoningEffort),
 				ServiceTier:     agent.ServiceTier(meta.ServiceTier),
@@ -305,8 +315,8 @@ func (rnr *Service) runPromptAs(
 		})
 	}
 
-	err = run(effectivePrompt, resumeID)
-	if errors.Is(err, agent.ErrSessionNotFound) && resumeID != "" {
+	err = run(effectivePrompt, resumeIDForRun)
+	if errors.Is(err, agent.ErrSessionNotFound) && resumeIDForRun != "" {
 		_, _ = rnr.store.Update(ctx, id, func(m *ChatMeta) {
 			clearSessionIDForProvider(m, providerID)
 			m.ForkPending = false
