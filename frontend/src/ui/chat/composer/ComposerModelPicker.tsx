@@ -17,13 +17,13 @@ export function ComposerModelPicker({
   onChange: (model: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [customModel, setCustomModel] = useState(model);
+  const [query, setQuery] = useState(model);
   const rootRef = useRef<HTMLDivElement>(null);
   const label = modelDisplayLabel(model, provider);
 
   useEffect(() => {
     setOpen(false);
-    setCustomModel(model);
+    setQuery(model);
   }, [provider, model]);
 
   useEffect(() => {
@@ -38,15 +38,21 @@ export function ComposerModelPicker({
 
   function pick(value: string) {
     setOpen(false);
+    setQuery(value);
     if (value !== model) onChange(value);
   }
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredOptions = options.filter((option) =>
+    !normalizedQuery || `${option.label} ${option.sub} ${option.value}`.toLowerCase().includes(normalizedQuery)
+  );
 
   return (
     <div ref={rootRef} class="relative w-[152px] flex-none sm:w-[168px]">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        class={`h-7 w-full min-w-0 rounded-md px-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60
+        class={`h-10 w-full min-w-0 rounded-md px-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-7 sm:px-2
                 ${open ? "bg-accent-blue/[0.12]" : "bg-white/[0.045] hover:bg-white/[0.075]"}`}
         disabled={streaming}
         title={streaming ? "Cannot change model while streaming" : "Choose model"}
@@ -62,24 +68,27 @@ export function ComposerModelPicker({
 
       {open && (
         <div
-          class="theme-menu-surface absolute left-0 bottom-full z-40 mb-2 w-[min(23rem,calc(100vw-1.5rem))]
-                 rounded-lg border border-white/10 bg-[#14161d] p-1 shadow-2xl"
+          class="theme-menu-surface fixed inset-x-3 bottom-3 z-50 max-h-[72vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#14161d] p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2 sm:max-h-none sm:w-[min(23rem,calc(100vw-1.5rem))] sm:rounded-lg sm:p-1"
           role="listbox"
         >
           <div class="border-b border-white/10 p-2">
-            <label class="block text-[11px] text-ink-400 mb-1">Custom model or Azure deployment</label>
+            <div class="mb-1 flex items-center justify-between gap-2">
+              <label class="text-[11px] text-ink-400">Search or enter a model / Azure deployment</label>
+              <button type="button" onClick={() => setOpen(false)} class="rounded px-2 py-1 text-xs text-ink-400 hover:bg-white/10 sm:hidden">Close</button>
+            </div>
             <div class="flex gap-1.5">
               <input
-                type="text"
-                value={customModel}
-                onInput={(event) => setCustomModel((event.target as HTMLInputElement).value)}
+                type="search"
+                value={query}
+                onInput={(event) => setQuery((event.target as HTMLInputElement).value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && customModel.trim()) pick(customModel.trim());
+                  if (event.key === "Enter" && query.trim()) pick(query.trim());
                 }}
-                placeholder="deployment-or-model-id"
-                class="min-w-0 flex-1 rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[12px] text-ink-100 placeholder-ink-500 focus:outline-none focus:border-accent-blue/50"
+                placeholder="e.g. DeepSeek-V4-Pro"
+                autofocus
+                class="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-ink-100 placeholder-ink-500 focus:outline-none focus:border-accent-blue/50 sm:rounded-md sm:px-2 sm:py-1.5 sm:text-xs"
               />
-              <button type="button" onClick={() => customModel.trim() && pick(customModel.trim())} disabled={!customModel.trim()} class="rounded-md bg-accent-blue/80 px-2 text-[11px] font-semibold text-white disabled:opacity-40">Use</button>
+              <button type="button" onClick={() => query.trim() && pick(query.trim())} disabled={!query.trim()} class="rounded-lg bg-accent-blue/80 px-3 text-xs font-semibold text-white disabled:opacity-40 sm:rounded-md sm:px-2">Use</button>
             </div>
           </div>
           {model && !options.some((option) => option.value === model) && (
@@ -94,7 +103,7 @@ export function ComposerModelPicker({
               <span class="block text-[12px] text-ink-300">custom model</span>
             </button>
           )}
-          {options.map((option) => {
+          {filteredOptions.map((option) => {
             const active = (model || "") === option.value;
             return (
               <button
@@ -116,6 +125,7 @@ export function ComposerModelPicker({
               </button>
             );
           })}
+          {filteredOptions.length === 0 && <div class="px-3 py-4 text-center text-xs text-ink-400">No matching model. Press Use to select this value.</div>}
         </div>
       )}
     </div>

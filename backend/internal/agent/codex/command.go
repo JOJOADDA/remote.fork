@@ -259,9 +259,7 @@ func codexAzureArgs(values map[string]string, requestedModel string) []string {
 		return nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(values["AZURE_OPENAI_ENDPOINT"]), "/")
-	if configured := strings.TrimSpace(values["OPENAI_BASE_URL"]); configured != "" {
-		baseURL = strings.TrimRight(configured, "/")
-	} else if !strings.HasSuffix(baseURL, "/openai/v1") {
+	if !strings.HasSuffix(baseURL, "/openai/v1") {
 		baseURL += "/openai/v1"
 	}
 	args := []string{

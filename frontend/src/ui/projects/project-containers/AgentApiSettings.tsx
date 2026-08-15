@@ -49,7 +49,7 @@ export function AgentApiSettings({ secrets, onSave }: { secrets: ProjectSecret[]
   );
 }
 
-const AZURE_MODEL_OPTIONS = ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-5-codex", "gpt-5", "gpt-5-mini"];
+const AZURE_MODEL_OPTIONS = ["DeepSeek-V4-Pro", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-5-codex", "gpt-5", "gpt-5-mini"];
 
 function ProviderCard({ title, description, fields, draft, onChange, onSave, saving, saved }: { title: string; description: string; fields: ReadonlyArray<Field>; draft: Record<string, string>; onChange: (key: string, value: string) => void; onSave: () => void; saving: boolean; saved: boolean }) {
   return (

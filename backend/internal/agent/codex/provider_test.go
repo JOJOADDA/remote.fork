@@ -270,6 +270,7 @@ func TestCodexAzureArgsUseResponsesV1Provider(t *testing.T) {
 		"AZURE_OPENAI_API_KEY":    "azure-test-key",
 		"AZURE_OPENAI_ENDPOINT":   "https://resource.openai.azure.com",
 		"AZURE_OPENAI_DEPLOYMENT": "gpt-5-codex",
+		"OPENAI_BASE_URL":         "https://openrouter.ai/api/v1",
 	}, "")
 	for _, expected := range []string{
 		"model_provider=azure",
@@ -282,8 +283,8 @@ func TestCodexAzureArgsUseResponsesV1Provider(t *testing.T) {
 			t.Fatalf("Azure args missing %q: %#v", expected, args)
 		}
 	}
-	if slices.Contains(args, "azure-test-key") {
-		t.Fatal("Azure API key leaked into Codex command arguments")
+	if slices.Contains(args, "azure-test-key") || slices.Contains(args, "https://openrouter.ai/api/v1") {
+		t.Fatalf("secret or OpenRouter endpoint leaked into Azure command arguments: %#v", args)
 	}
 }
 
