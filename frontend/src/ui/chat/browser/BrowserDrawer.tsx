@@ -57,6 +57,8 @@ export function BrowserDrawer({
   const [inspectMode, setInspectMode] = useState(false);
   const [useInspectorFrame, setUseInspectorFrame] = useState(false);
   const [guiMode, setGuiMode] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [viewportMode, setViewportMode] = useState<"fit" | "desktop" | "tablet" | "mobile">("fit");
   const asideRef = useRef<HTMLElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const guiIframeRef = useRef<HTMLIFrameElement>(null);
@@ -89,6 +91,8 @@ export function BrowserDrawer({
       setInspectMode(false);
       setUseInspectorFrame(false);
       setGuiMode(false);
+      setFullscreen(false);
+      setViewportMode("fit");
     }
   }, [open]);
 
@@ -213,13 +217,21 @@ export function BrowserDrawer({
     });
   }
 
+  function showPreview() {
+    setGuiMode(false);
+    setInspectMode(false);
+    setUseInspectorFrame(false);
+    onRefreshApps();
+  }
+
   return (
     <aside
       ref={asideRef}
       class={`relative z-20 h-full flex-none overflow-hidden bg-[#101318] border-l border-white/10
+              ${fullscreen ? "fixed inset-0 z-50 w-screen max-w-none" : ""}
               ${resizing ? "transition-none" : "transition-[width,opacity] duration-200 ease-out"}
               ${open ? "opacity-100 shadow-2xl" : "opacity-0 border-l-0 shadow-none pointer-events-none"}`}
-      style={{
+      style={fullscreen ? undefined : {
         width: open ? `${browserWidth}px` : "0px",
         maxWidth: open ? `max(${minBrowserWidth}px, calc(100% - ${minChatWidth}px))` : "0px",
       }}
@@ -244,7 +256,12 @@ export function BrowserDrawer({
           onSelectPort={onSelectPort}
           onToggleInspectMode={toggleInspectMode}
           onToggleGuiMode={toggleGuiMode}
+          onShowPreview={showPreview}
           onStopGui={gui.stop}
+          fullscreen={fullscreen}
+          viewportMode={viewportMode}
+          onToggleFullscreen={() => setFullscreen((value) => !value)}
+          onViewportMode={setViewportMode}
           onRefresh={handleRefresh}
           onClose={onClose}
         />
@@ -268,6 +285,7 @@ export function BrowserDrawer({
             resizing={resizing}
             inspectMode={inspectMode}
             onFrameLoad={postInspectState}
+            viewportMode={viewportMode}
           />
         )}
       </div>

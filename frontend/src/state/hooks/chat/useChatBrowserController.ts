@@ -8,6 +8,19 @@ import { projectApi } from "../../../api/projectApi";
 import { projectPreviewPort } from "../../../shared/projectPreviewUrls";
 import { chatBrowserState } from "../../chat/chatBrowserState";
 
+const infrastructureProcessPattern = /^(code-server|sshd|caddy|nginx|apache2?|chromium|chrome|xvfb|x11vnc|novnc|websockify|cloudflared)$/i;
+const conventionalPreviewPorts = new Set([3000, 3001, 4000, 4173, 4200, 5000, 5173, 5174, 8000, 8080, 8081, 8888]);
+
+function choosePreviewPort(apps: ContainerApp[], hintedPort: number | null): number | null {
+  if (hintedPort != null && apps.some((app) => app.port === hintedPort)) return hintedPort;
+  if (apps.length === 0) return null;
+
+  const candidates = apps.filter((app) => !infrastructureProcessPattern.test(app.process?.trim() || ""));
+  const pool = candidates.length > 0 ? candidates : apps;
+  const conventional = pool.find((app) => conventionalPreviewPorts.has(app.port));
+  return (conventional ?? pool[pool.length - 1]).port;
+}
+
 export function useChatBrowserController({
   chat,
   projects,
@@ -51,9 +64,7 @@ export function useChatBrowserController({
       setSelectedAppPort((prev) => {
         if (apps.length === 0) return null;
         if (prev != null && apps.some((app) => app.port === prev)) return prev;
-        const hinted = projectPreviewPort(browserUrl);
-        if (hinted != null && apps.some((app) => app.port === hinted)) return hinted;
-        return apps[apps.length - 1].port;
+        return choosePreviewPort(apps, projectPreviewPort(browserUrl));
       });
     } catch {
       setContainerApps([]);
