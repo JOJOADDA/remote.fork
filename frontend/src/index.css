@@ -642,3 +642,16 @@ html[data-theme="light"] .scrollbar-thin {
 html[data-theme="light"] .scrollbar-thin::-webkit-scrollbar-thumb {
   background: #afb8c1;
 }
+
+
+@keyframes progress-slide {
+  0% { transform: translateX(-140%); }
+  100% { transform: translateX(420%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-\[progress-slide_1\.5s_ease-in-out_infinite\] {
+    animation: none !important;
+  }
+}
